@@ -44,16 +44,16 @@
 
     function checkDomain() {
         if (!scannerEnabled) return; // Stop if the scanner is disabled
-
+    
         const currentDomain = window.location.hostname.replace(/^www\./, ""); // Normalize current domain
         if (currentDomain === lastCheckedDomain) return; // Skip if the domain hasn't changed
-
+    
         lastCheckedDomain = currentDomain; // Update the last checked domain
         console.log("Current domain:", currentDomain);
         console.log("Risky domains:", riskyDomains);
-
+    
         const bannerId = "risky-site-banner";
-
+    
         // Remove existing banner and reset margin if not risky
         const existingBanner = document.getElementById(bannerId);
         if (!riskyDomains.includes(currentDomain)) {
@@ -61,14 +61,17 @@
                 existingBanner.remove();
                 document.body.style.marginTop = ""; // Reset margin
             }
+    
+            // Notify background script to reset the icon
+            chrome.runtime.sendMessage({ action: "resetIcon" });
             return;
         }
-
+    
         // Add banner if risky
         if (!existingBanner) {
             const banner = document.createElement("div");
             banner.id = bannerId;
-            banner.textContent = "Táto stránka je nebezpečná / This website is risky!";
+            banner.textContent = "Warning: This website is risky!";
             banner.style.position = "fixed";
             banner.style.top = "0";
             banner.style.left = "0";
@@ -80,11 +83,14 @@
             banner.style.zIndex = "10000";
             banner.style.boxShadow = "0px 4px 6px rgba(0, 0, 0, 0.2)";
             document.body.appendChild(banner);
-
+    
             // Push the page content down
             const bannerHeight = banner.offsetHeight;
             document.body.style.marginTop = `${bannerHeight}px`;
         }
+    
+        // Notify background script to change the icon
+        chrome.runtime.sendMessage({ action: "setRiskyIcon" });
     }
 
     // Monitor domain changes
