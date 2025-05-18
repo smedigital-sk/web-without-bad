@@ -18,6 +18,21 @@
         }
     }
 
+    // Get text translations based on browser language
+    const translations = (() => {
+        const lang = navigator.language || 'en';
+        if (lang.toLowerCase().startsWith("sk")) {
+            return {
+                bannerText: "Upozornenie: Táto stránka je riziková! ",
+                linkText: "Dozvedieť sa viac"
+            };
+        }
+        return {
+            bannerText: "Warning: This website is risky! ",
+            linkText: "Learn more"
+        };
+    })();
+
     // Check if the scanner is enabled
     chrome.storage.local.get(["scannerEnabled"], (data) => {
         scannerEnabled = data.scannerEnabled ?? true; // Default to enabled if undefined
@@ -97,15 +112,15 @@
             banner.style.zIndex = "10000";
             banner.style.boxShadow = "0px 4px 6px rgba(0, 0, 0, 0.2)";
 
-            // Add warning text
+            // Add warning text using the translations
             const warningText = document.createElement("span");
-            warningText.textContent = "Warning: This website is risky! ";
+            warningText.textContent = translations.bannerText;
             banner.appendChild(warningText);
 
             // Add PDF link
             const pdfLink = document.createElement("a");
             pdfLink.href = riskyDomainsMap[currentDomain]; // Get the PDF link for the current domain
-            pdfLink.textContent = "Learn more";
+            pdfLink.textContent = translations.linkText;
             pdfLink.style.color = "white";
             pdfLink.style.textDecoration = "underline";
             pdfLink.target = "_blank"; // Open link in a new tab

@@ -1,6 +1,21 @@
 document.addEventListener("DOMContentLoaded", () => {
     const toggle = document.getElementById("scannerToggle");
 
+    // Set translations for popup texts based on browser language
+    const lang = navigator.language || 'en';
+    const popupTexts = lang.toLowerCase().startsWith("sk")
+        ? {
+            title: "Skener nebezpečných stránok",
+            toggleText: "ON / OFF"
+          }
+        : {
+            title: "Unsecure Websites Scanner",
+            toggleText: "ON / OFF"
+          };
+
+    document.querySelector("h1").textContent = popupTexts.title;
+    document.getElementById("toggleText").textContent = popupTexts.toggleText;
+
     // Initialize the toggle state
     chrome.storage.local.get(["scannerEnabled"], (data) => {
         toggle.checked = data.scannerEnabled ?? true; // Default to enabled if undefined
