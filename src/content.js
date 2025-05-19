@@ -4,7 +4,7 @@
     }
     window.hasRun = true;
 
-    const csvUrl = chrome.runtime.getURL("RiskyShops.csv");
+    const csvUrl = chrome.runtime.getURL("merged.csv");
     let riskyDomainsMap = {}; // Map to store domain and corresponding PDF link
     let scannerEnabled = true;
     let lastCheckedDomain = null;
@@ -55,21 +55,30 @@
         if (Object.keys(riskyDomainsMap).length === 0) {
             const response = await fetch(csvUrl);
             const csvText = await response.text();
+    
+            // Parse CSV, handling escaped commas (\,) and multiple commas in description.
+            const rows = csvText.split("\n");
+            // Assume the CSV has a header row. Start from index 1.
+            for (let i = 1; i < rows.length; i++) {
+                if (!rows[i].trim()) continue; // skip empty lines
+    
+                // Use regex negative lookbehind to split on commas not preceded by a backslash.
+                // Note: Negative lookbehind is supported in modern JavaScript.
+                let columns = rows[i].split(/(?<!\\),/);
+                if (columns.length < 3) continue; // require at least three columns
+    
+                const domain = columns[0].trim();
+                const pdfLink = columns[1].trim();
+                // Join any remaining columns (in case the description had commas)
+                let description = columns.slice(2).join(",").trim();
+                // Replace escaped commas (\,) with a literal comma.
+                description = description.replace(/\\,/g, ",");
+    
+                riskyDomainsMap[domain] = { pdfLink, description };
+            }
 
-            // Parse CSV and extract domains and PDF links
-            riskyDomainsMap = csvText
-                .split("\n") // Split by line
-                .slice(1) // Skip the header row
-                .reduce((map, line) => {
-                    const [domain, pdfLink] = line.split(",").map((item) => item.trim());
-                    if (domain && pdfLink) {
-                        map[domain.replace(/^www\./, "")] = pdfLink; // Remove "www." and store in map
-                    }
-                    return map;
-                }, {});
-        }
-
-        checkDomain(); // Initial check after loading domains
+        checkDomain();
+        } // Initial check after loading domains
     }
 
     function checkDomain() {
@@ -98,43 +107,50 @@
         }
 
         // Add banner if risky
-        if (!existingBanner) {
-            const banner = document.createElement("div");
-            banner.id = bannerId;
-            banner.style.position = "fixed";
-            banner.style.top = "0";
-            banner.style.left = "0";
-            banner.style.width = "100%";
-            banner.style.backgroundColor = "red";
-            banner.style.color = "white";
-            banner.style.textAlign = "center";
-            banner.style.padding = "10px";
-            banner.style.zIndex = "10000";
-            banner.style.boxShadow = "0px 4px 6px rgba(0, 0, 0, 0.2)";
+        // Updated banner creation logic (lines 122 to 147 replacement)
+const riskData = riskyDomainsMap[currentDomain];
+if (riskData) {
+    const banner = document.createElement("div");
+    banner.id = bannerId;
+    banner.style.position = "fixed";
+    banner.style.top = "0";
+    banner.style.left = "0";
+    banner.style.width = "100%";
+    banner.style.backgroundColor = "red";
+    banner.style.color = "white";
+    banner.style.textAlign = "center";
+    banner.style.padding = "10px";
+    banner.style.zIndex = "10000";
+    banner.style.boxShadow = "0px 4px 6px rgba(0, 0, 0, 0.2)";
 
-            // Add warning text using the translations
-            const warningText = document.createElement("span");
-            warningText.textContent = translations.bannerText;
-            banner.appendChild(warningText);
+    let actionElement;
+    const pdfLink = riskData.pdfLink ? riskData.pdfLink.trim() : "";
+    // If pdfLink is blank or a dash, show description.
+    if (pdfLink === "" || pdfLink === "-") {
+        actionElement = document.createElement("span");
+        actionElement.textContent = riskData.description;
+        actionElement.style.color = "white";
+    } else {
+        actionElement = document.createElement("a");
+        actionElement.href = pdfLink;
+        actionElement.textContent = translations.linkText;
+        actionElement.style.color = "white";
+        actionElement.style.textDecoration = "underline";
+        actionElement.target = "_blank";
+    }
+    
+    // Set banner content with leading banner text and the action element appended.
+    banner.innerHTML = translations.bannerText + " ";
+    banner.appendChild(actionElement);
+    
+    document.body.appendChild(banner);
+    // Push the page content down based on banner height.
+    const bannerHeight = banner.offsetHeight;
+    document.body.style.marginTop = `${bannerHeight}px`;
+}
 
-            // Add PDF link
-            const pdfLink = document.createElement("a");
-            pdfLink.href = riskyDomainsMap[currentDomain]; // Get the PDF link for the current domain
-            pdfLink.textContent = translations.linkText;
-            pdfLink.style.color = "white";
-            pdfLink.style.textDecoration = "underline";
-            pdfLink.target = "_blank"; // Open link in a new tab
-            banner.appendChild(pdfLink);
-
-            document.body.appendChild(banner);
-
-            // Push the page content down
-            const bannerHeight = banner.offsetHeight;
-            document.body.style.marginTop = `${bannerHeight}px`;
-        }
-
-        // Notify background script to change the icon
-        chrome.runtime.sendMessage({ action: "setRiskyIcon" });
+// Notify background script to change the icon
+chrome.runtime.sendMessage({ action: "setRiskyIcon" });
     }
 
     // Monitor domain changes

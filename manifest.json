@@ -17,7 +17,7 @@
   },
   "web_accessible_resources": [
     {
-      "resources": ["RiskyShops.csv", "riskyIcon.png", "icon.png"],
+      "resources": ["merged.csv", "riskyIcon.png", "icon.png"],
       "matches": ["<all_urls>"]
     }
   ],
