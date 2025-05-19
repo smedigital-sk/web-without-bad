@@ -10,14 +10,14 @@
   },
   "action": {
     "default_popup": "src/popup.html",
-    "default_icon": "src/icon.png"
+    "default_icon": "icon.png"
   },
   "icons": {
-    "128": "src/icon.png"
+    "128": "icon.png"
   },
   "web_accessible_resources": [
     {
-      "resources": ["RiskyShops.csv"],
+      "resources": ["RiskyShops.csv", "riskyIcon.png", "icon.png"],
       "matches": ["<all_urls>"]
     }
   ],

@@ -5,9 +5,33 @@
     window.hasRun = true;
 
     const csvUrl = chrome.runtime.getURL("RiskyShops.csv");
-    let riskyDomains = [];
+    let riskyDomainsMap = {}; // Map to store domain and corresponding PDF link
     let scannerEnabled = true;
     let lastCheckedDomain = null;
+
+    // Remove the banner if it exists
+    function removeBanner() {
+        const existingBanner = document.getElementById("risky-site-banner");
+        if (existingBanner) {
+            existingBanner.remove();
+            document.body.style.marginTop = ""; // Reset margin
+        }
+    }
+
+    // Get text translations based on browser language
+    const translations = (() => {
+        const lang = navigator.language || 'en';
+        if (lang.toLowerCase().startsWith("sk")) {
+            return {
+                bannerText: "Upozornenie: Táto stránka je riziková! ",
+                linkText: "Dozvedieť sa viac"
+            };
+        }
+        return {
+            bannerText: "Warning: This website is risky! ",
+            linkText: "Learn more"
+        };
+    })();
 
     // Check if the scanner is enabled
     chrome.storage.local.get(["scannerEnabled"], (data) => {
@@ -28,15 +52,21 @@
     });
 
     async function loadDomainsAndCheck() {
-        if (riskyDomains.length === 0) {
+        if (Object.keys(riskyDomainsMap).length === 0) {
             const response = await fetch(csvUrl);
             const csvText = await response.text();
 
-            // Parse CSV and extract only the domains (first column)
-            riskyDomains = csvText
+            // Parse CSV and extract domains and PDF links
+            riskyDomainsMap = csvText
                 .split("\n") // Split by line
-                .map((line) => line.split(",")[0].trim().replace(/^www\./, "")) // Extract the first column (domain) and remove "www."
-                .filter((domain) => domain && domain !== "Domain"); // Remove empty lines and header
+                .slice(1) // Skip the header row
+                .reduce((map, line) => {
+                    const [domain, pdfLink] = line.split(",").map((item) => item.trim());
+                    if (domain && pdfLink) {
+                        map[domain.replace(/^www\./, "")] = pdfLink; // Remove "www." and store in map
+                    }
+                    return map;
+                }, {});
         }
 
         checkDomain(); // Initial check after loading domains
@@ -50,17 +80,20 @@
 
         lastCheckedDomain = currentDomain; // Update the last checked domain
         console.log("Current domain:", currentDomain);
-        console.log("Risky domains:", riskyDomains);
+        console.log("Risky domains map:", riskyDomainsMap);
 
         const bannerId = "risky-site-banner";
 
         // Remove existing banner and reset margin if not risky
         const existingBanner = document.getElementById(bannerId);
-        if (!riskyDomains.includes(currentDomain)) {
+        if (!riskyDomainsMap[currentDomain]) {
             if (existingBanner) {
                 existingBanner.remove();
                 document.body.style.marginTop = ""; // Reset margin
             }
+
+            // Notify background script to reset the icon
+            chrome.runtime.sendMessage({ action: "resetIcon" });
             return;
         }
 
@@ -68,7 +101,6 @@
         if (!existingBanner) {
             const banner = document.createElement("div");
             banner.id = bannerId;
-            banner.textContent = "Táto stránka je nebezpečná / This website is risky!";
             banner.style.position = "fixed";
             banner.style.top = "0";
             banner.style.left = "0";
@@ -79,12 +111,30 @@
             banner.style.padding = "10px";
             banner.style.zIndex = "10000";
             banner.style.boxShadow = "0px 4px 6px rgba(0, 0, 0, 0.2)";
+
+            // Add warning text using the translations
+            const warningText = document.createElement("span");
+            warningText.textContent = translations.bannerText;
+            banner.appendChild(warningText);
+
+            // Add PDF link
+            const pdfLink = document.createElement("a");
+            pdfLink.href = riskyDomainsMap[currentDomain]; // Get the PDF link for the current domain
+            pdfLink.textContent = translations.linkText;
+            pdfLink.style.color = "white";
+            pdfLink.style.textDecoration = "underline";
+            pdfLink.target = "_blank"; // Open link in a new tab
+            banner.appendChild(pdfLink);
+
             document.body.appendChild(banner);
 
             // Push the page content down
             const bannerHeight = banner.offsetHeight;
             document.body.style.marginTop = `${bannerHeight}px`;
         }
+
+        // Notify background script to change the icon
+        chrome.runtime.sendMessage({ action: "setRiskyIcon" });
     }
 
     // Monitor domain changes
