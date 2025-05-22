@@ -139,19 +139,6 @@
     document.body.style.marginTop = `${bannerHeight}px`;
 }
 
-async function getUserIp() {
-    try {
-        const response = await fetch("https://api.ipify.org?format=json");
-        if (!response.ok) {
-            throw new Error(`Failed to fetch IP: ${response.statusText}`);
-        }
-        const data = await response.json();
-        return data.ip; // Returns the user's IP address
-    } catch (error) {
-        console.error("Error fetching user IP:", error);
-        return "0.0.0.0"; // Fallback IP in case of an error
-    }
-}
 
 async function getUserIp() {
     try {
