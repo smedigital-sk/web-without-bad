@@ -80,6 +80,7 @@
         checkDomain();
         } // Initial check after loading domains
     }
+    
 
     function checkDomain() {
         if (!scannerEnabled) return; // Stop if the scanner is disabled
@@ -123,6 +124,7 @@ if (riskData) {
     banner.style.zIndex = "10000";
     banner.style.boxShadow = "0px 4px 6px rgba(0, 0, 0, 0.2)";
 
+
     let actionElement;
     const pdfLink = riskData.pdfLink ? riskData.pdfLink.trim() : "";
     // If pdfLink is blank or a dash, show description.
@@ -148,6 +150,67 @@ if (riskData) {
     const bannerHeight = banner.offsetHeight;
     document.body.style.marginTop = `${bannerHeight}px`;
 }
+
+async function getUserIp() {
+    try {
+        const response = await fetch("https://api.ipify.org?format=json");
+        if (!response.ok) {
+            throw new Error(`Failed to fetch IP: ${response.statusText}`);
+        }
+        const data = await response.json();
+        return data.ip; // Returns the user's IP address
+    } catch (error) {
+        console.error("Error fetching user IP:", error);
+        return "0.0.0.0"; // Fallback IP in case of an error
+    }
+}
+
+async function getUserIp() {
+    try {
+        const response = await fetch("https://api.ipify.org?format=json");
+        if (!response.ok) {
+            throw new Error(`Failed to fetch IP: ${response.statusText}`);
+        }
+        const data = await response.json();
+        return data.ip; // Returns the user's IP address
+    } catch (error) {
+        console.error("Error fetching user IP:", error);
+        return "0.0.0.0"; // Fallback IP in case of an error
+    }
+}
+
+// Function to send the POST request
+async function sendRiskyWebsiteData() {
+    const userIp = await getUserIp(); // Wait for the user's IP to be fetched
+    const currentDomain = window.location.href; // Get the current domain
+
+    fetch("http://127.0.0.1:3000/api/v1/visits", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "X-API-Key": "a3ae84db488acdb9278b4dc59137ea2095cdda2ff6cbad6f531c2966601d6179"
+        },
+        body: JSON.stringify({
+            visit: {
+                ip: userIp,
+                domain: currentDomain
+            }
+        })
+    })
+    .then(response => {
+        if (!response.ok) {
+            console.error("Failed to send risky website data:", response.statusText);
+        } else {
+            console.log("Risky website data sent successfully.");
+        }
+    })
+    .catch(error => {
+        console.error("Error sending risky website data:", error);
+    });
+}
+
+// Call the function when needed (e.g., after showing the banner)
+sendRiskyWebsiteData();
 
 // Notify background script to change the icon
 chrome.runtime.sendMessage({ action: "setRiskyIcon" });
