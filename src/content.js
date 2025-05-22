@@ -71,6 +71,7 @@
 
         checkDomain(); // Initial check after loading domains
     }
+    
 
     function checkDomain() {
         if (!scannerEnabled) return; // Stop if the scanner is disabled
@@ -112,29 +113,95 @@
             banner.style.zIndex = "10000";
             banner.style.boxShadow = "0px 4px 6px rgba(0, 0, 0, 0.2)";
 
-            // Add warning text using the translations
-            const warningText = document.createElement("span");
-            warningText.textContent = translations.bannerText;
-            banner.appendChild(warningText);
+    let actionElement;
+    const pdfLink = riskData.pdfLink ? riskData.pdfLink.trim() : "";
+    // If pdfLink is blank or a dash, show description.
+    if (pdfLink === "" || pdfLink === "-") {
+        actionElement = document.createElement("span");
+        actionElement.textContent = riskData.description;
+        actionElement.style.color = "white";
+    } else {
+        actionElement = document.createElement("a");
+        actionElement.href = pdfLink;
+        actionElement.textContent = translations.linkText;
+        actionElement.style.color = "white";
+        actionElement.style.textDecoration = "underline";
+        actionElement.target = "_blank";
+    }
+    
+    // Set banner content with leading banner text and the action element appended.
+    banner.innerHTML = translations.bannerText + " ";
+    banner.appendChild(actionElement);
+    
+    document.body.appendChild(banner);
+    // Push the page content down based on banner height.
+    const bannerHeight = banner.offsetHeight;
+    document.body.style.marginTop = `${bannerHeight}px`;
+}
 
-            // Add PDF link
-            const pdfLink = document.createElement("a");
-            pdfLink.href = riskyDomainsMap[currentDomain]; // Get the PDF link for the current domain
-            pdfLink.textContent = translations.linkText;
-            pdfLink.style.color = "white";
-            pdfLink.style.textDecoration = "underline";
-            pdfLink.target = "_blank"; // Open link in a new tab
-            banner.appendChild(pdfLink);
-
-            document.body.appendChild(banner);
-
-            // Push the page content down
-            const bannerHeight = banner.offsetHeight;
-            document.body.style.marginTop = `${bannerHeight}px`;
+async function getUserIp() {
+    try {
+        const response = await fetch("https://api.ipify.org?format=json");
+        if (!response.ok) {
+            throw new Error(`Failed to fetch IP: ${response.statusText}`);
         }
+        const data = await response.json();
+        return data.ip; // Returns the user's IP address
+    } catch (error) {
+        console.error("Error fetching user IP:", error);
+        return "0.0.0.0"; // Fallback IP in case of an error
+    }
+}
 
-        // Notify background script to change the icon
-        chrome.runtime.sendMessage({ action: "setRiskyIcon" });
+async function getUserIp() {
+    try {
+        const response = await fetch("https://api.ipify.org?format=json");
+        if (!response.ok) {
+            throw new Error(`Failed to fetch IP: ${response.statusText}`);
+        }
+        const data = await response.json();
+        return data.ip; // Returns the user's IP address
+    } catch (error) {
+        console.error("Error fetching user IP:", error);
+        return "0.0.0.0"; // Fallback IP in case of an error
+    }
+}
+
+// Function to send the POST request
+async function sendRiskyWebsiteData() {
+    const userIp = await getUserIp(); // Wait for the user's IP to be fetched
+    const currentDomain = window.location.href; // Get the current domain
+
+    fetch("http://127.0.0.1:3000/api/v1/visits", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "X-API-Key": "a3ae84db488acdb9278b4dc59137ea2095cdda2ff6cbad6f531c2966601d6179"
+        },
+        body: JSON.stringify({
+            visit: {
+                ip: userIp,
+                domain: currentDomain
+            }
+        })
+    })
+    .then(response => {
+        if (!response.ok) {
+            console.error("Failed to send risky website data:", response.statusText);
+        } else {
+            console.log("Risky website data sent successfully.");
+        }
+    })
+    .catch(error => {
+        console.error("Error sending risky website data:", error);
+    });
+}
+
+// Call the function when needed (e.g., after showing the banner)
+sendRiskyWebsiteData();
+
+// Notify background script to change the icon
+chrome.runtime.sendMessage({ action: "setRiskyIcon" });
     }
 
     // Monitor domain changes
